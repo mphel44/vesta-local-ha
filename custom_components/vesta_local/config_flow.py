@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback

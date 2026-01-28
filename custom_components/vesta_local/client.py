@@ -161,6 +161,7 @@ class VestaLocalClient:
         password: str,
         session: aiohttp.ClientSession | None = None,
         verify_ssl: bool = False,
+        use_ssl: bool = False,
     ) -> None:
         """Initialize the Vesta Local Client.
 
@@ -171,6 +172,7 @@ class VestaLocalClient:
             session: Optional aiohttp session. If not provided, one will be created.
             verify_ssl: Whether to verify SSL certificates. Default False for
                 self-signed certs common on local panels.
+            use_ssl: Whether to use HTTPS. Default False (use HTTP).
         """
         self._host = host
         self._username = username
@@ -179,10 +181,12 @@ class VestaLocalClient:
         self._session = session
         self._owned_session = session is None
         self._verify_ssl = verify_ssl
-        self._base_url = f"https://{host}/action"
+        self._use_ssl = use_ssl
+        protocol = "https" if use_ssl else "http"
+        self._base_url = f"{protocol}://{host}/action"
         self._headers = {
             "X-Requested-With": "XMLHttpRequest",
-            "Referer": f"https://{host}/",
+            "Referer": f"{protocol}://{host}/",
             "Accept": "application/json",
         }
 
@@ -198,14 +202,23 @@ class VestaLocalClient:
             The aiohttp ClientSession instance.
         """
         if self._session is None or self._session.closed:
-            # Create SSL context that doesn't verify certificates
-            # (common for self-signed certs on local panels)
-            if not self._verify_ssl:
-                ssl_context = ssl.create_default_context()
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-                connector = aiohttp.TCPConnector(ssl=ssl_context)
+            connector: aiohttp.TCPConnector
+            if self._use_ssl:
+                # Create SSL context in executor to avoid blocking the event loop
+                if not self._verify_ssl:
+                    ssl_context = await asyncio.get_event_loop().run_in_executor(
+                        None, ssl.create_default_context
+                    )
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+                    connector = aiohttp.TCPConnector(ssl=ssl_context)
+                else:
+                    ssl_context = await asyncio.get_event_loop().run_in_executor(
+                        None, ssl.create_default_context
+                    )
+                    connector = aiohttp.TCPConnector(ssl=ssl_context)
             else:
+                # HTTP mode - no SSL context needed
                 connector = aiohttp.TCPConnector()
 
             self._session = aiohttp.ClientSession(connector=connector)
