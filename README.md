@@ -6,10 +6,14 @@
 
 A Home Assistant custom integration for **local control** of Vesta/Climax alarm panels (HSGW-MAX series and compatible models). This integration communicates directly with your panel over your local network - **no cloud required**.
 
+## 🙏 Acknowledgements
+
+This integration is inspired by [koying's smarthomesec_ha](https://github.com/koying/smarthomesec_ha), an integration that talks to the Smarthomesec website. This version has been adapted to communicate locally with the panel instead. Thanks to koying for the original work!
+
 ## ✨ Features
 
 - 🔒 **100% Local Control** - All communication stays on your local network
-- ⚡ **Ultra-Responsive** - 5-second polling interval for near real-time updates
+- ⚡ **Responsive** - 5-second polling interval for near real-time updates
 - 🚨 **Alarm Control Panel** - Arm/Disarm in multiple modes (Away, Home, Night) - no code required
 - 📡 **Binary Sensors** - Door contacts, motion detectors, smoke/CO detectors, water leak sensors, glass break detectors
 - 🔋 **Device Battery Monitoring** - Dedicated battery status sensor for each wireless device
