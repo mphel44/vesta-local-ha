@@ -1,0 +1,33 @@
+name: Create Release on Push to Main
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'custom_components/vesta_local/manifest.json' # Déclenche seulement si la version change
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get version from manifest
+        id: get_version
+        run: |
+          # Extrait la version du fichier manifest.json
+          VERSION=$(jq -r '.version' custom_components/vesta_local/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
