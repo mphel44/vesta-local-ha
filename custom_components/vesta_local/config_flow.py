@@ -4,21 +4,19 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import aiohttp
 import voluptuous as vol
 
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import (
     VestaAuthenticationError,
     VestaConnectionError,
     VestaLocalClient,
 )
-from .const import DOMAIN, INTEGRATION_TITLE
+from .const import CONF_USE_SSL, DOMAIN, INTEGRATION_TITLE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +25,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): str,
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_USE_SSL, default=False): bool,
     }
 )
 
@@ -34,6 +33,14 @@ REAUTH_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+    }
+)
+
+ZEROCONF_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): str,
+        vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_USE_SSL, default=False): bool,
     }
 )
 
@@ -94,9 +101,10 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
+            use_ssl = user_input.get(CONF_USE_SSL, False)
 
             error = await self._test_connection(
-                self._discovered_host, username, password
+                self._discovered_host, username, password, use_ssl
             )
             if error:
                 errors["base"] = error
@@ -107,12 +115,13 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HOST: self._discovered_host,
                         CONF_USERNAME: username,
                         CONF_PASSWORD: password,
+                        CONF_USE_SSL: use_ssl,
                     },
                 )
 
         return self.async_show_form(
             step_id="zeroconf_confirm",
-            data_schema=REAUTH_SCHEMA,
+            data_schema=ZEROCONF_SCHEMA,
             errors=errors,
             description_placeholders={
                 "name": self._discovered_name or "Vesta/Climax Panel",
@@ -133,13 +142,14 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST].strip()
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
+            use_ssl = user_input.get(CONF_USE_SSL, False)
 
             # Check for duplicate entries
             await self.async_set_unique_id(host)
             self._abort_if_unique_id_configured()
 
             # Test connection
-            error = await self._test_connection(host, username, password)
+            error = await self._test_connection(host, username, password, use_ssl)
             if error:
                 errors["base"] = error
             else:
@@ -149,6 +159,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HOST: host,
                         CONF_USERNAME: username,
                         CONF_PASSWORD: password,
+                        CONF_USE_SSL: use_ssl,
                     },
                 )
 
@@ -186,8 +197,10 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
+            # Keep the existing use_ssl setting
+            use_ssl = self._reauth_entry.data.get(CONF_USE_SSL, False)
 
-            error = await self._test_connection(self._host, username, password)
+            error = await self._test_connection(self._host, username, password, use_ssl)
             if error:
                 errors["base"] = error
             else:
@@ -198,6 +211,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HOST: self._host,
                         CONF_USERNAME: username,
                         CONF_PASSWORD: password,
+                        CONF_USE_SSL: use_ssl,
                     },
                 )
                 await self.hass.config_entries.async_reload(
@@ -218,7 +232,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _test_connection(
-        self, host: str, username: str, password: str
+        self, host: str, username: str, password: str, use_ssl: bool = False
     ) -> str | None:
         """Test the connection to the panel.
 
@@ -226,6 +240,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             host: The hostname or IP address.
             username: The username.
             password: The password.
+            use_ssl: Whether to use HTTPS.
 
         Returns:
             Error string if connection fails, None if successful.
@@ -235,6 +250,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             username=username,
             password=password,
             verify_ssl=False,
+            use_ssl=use_ssl,
         )
 
         try:

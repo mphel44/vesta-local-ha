@@ -7,12 +7,14 @@
         "data": {
           "host": "Host (IP address or hostname)",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "use_ssl": "Use HTTPS"
         },
         "data_description": {
           "host": "The IP address or hostname of your alarm panel (e.g., 192.168.1.100)",
           "username": "The username for your alarm panel (usually 'admin')",
-          "password": "The password for your alarm panel"
+          "password": "The password for your alarm panel",
+          "use_ssl": "Enable if your panel uses HTTPS (e.g., via a reverse proxy)"
         }
       },
       "zeroconf_confirm": {
@@ -20,11 +22,13 @@
         "description": "A Vesta/Climax alarm panel ({name}) was discovered at {host}. Enter the credentials to complete setup.",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "use_ssl": "Use HTTPS"
         },
         "data_description": {
           "username": "The username for your alarm panel (usually 'admin')",
-          "password": "The password for your alarm panel"
+          "password": "The password for your alarm panel",
+          "use_ssl": "Enable if your panel uses HTTPS (e.g., via a reverse proxy)"
         }
       },
       "reauth_confirm": {

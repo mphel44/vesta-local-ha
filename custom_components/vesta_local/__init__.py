@@ -17,7 +17,7 @@ from .client import (
     VestaConnectionError,
     VestaLocalClient,
 )
-from .const import DOMAIN
+from .const import CONF_USE_SSL, DOMAIN
 from .coordinator import VestaDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,8 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VestaConfigEntry) -> boo
     host = entry.data[CONF_HOST]
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
+    use_ssl = entry.data.get(CONF_USE_SSL, False)
 
-    _LOGGER.debug("Setting up Vesta Local integration for %s", host)
+    _LOGGER.debug("Setting up Vesta Local integration for %s (SSL: %s)", host, use_ssl)
 
     # Create the API client
     client = VestaLocalClient(
@@ -57,6 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VestaConfigEntry) -> boo
         username=username,
         password=password,
         verify_ssl=False,
+        use_ssl=use_ssl,
     )
 
     # Test the connection

@@ -13,6 +13,7 @@ MANUFACTURER: Final = "Climax Technology"
 CONF_HOST: Final = "host"
 CONF_USERNAME: Final = "username"
 CONF_PASSWORD: Final = "password"
+CONF_USE_SSL: Final = "use_ssl"
 
 # API endpoints (local CGI)
 ENDPOINT_LOGIN: Final = "login"

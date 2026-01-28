@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import ssl
 from dataclasses import dataclass
 from typing import Any
 
-import aiohttp
+import httpx
 from pydantic import BaseModel, Field, field_validator
 
 from .const import (
@@ -148,7 +147,7 @@ class VestaLocalClient:
     """Async client for Vesta/Climax local API.
 
     This client handles all communication with the alarm panel's local
-    HTTP interface using aiohttp.
+    HTTP interface using httpx with Digest Auth support.
 
     Attributes:
         host: The hostname or IP address of the panel.
@@ -159,7 +158,6 @@ class VestaLocalClient:
         host: str,
         username: str,
         password: str,
-        session: aiohttp.ClientSession | None = None,
         verify_ssl: bool = False,
         use_ssl: bool = False,
     ) -> None:
@@ -169,7 +167,6 @@ class VestaLocalClient:
             host: Hostname or IP address of the panel.
             username: Username for authentication.
             password: Password for authentication.
-            session: Optional aiohttp session. If not provided, one will be created.
             verify_ssl: Whether to verify SSL certificates. Default False for
                 self-signed certs common on local panels.
             use_ssl: Whether to use HTTPS. Default False (use HTTP).
@@ -177,11 +174,10 @@ class VestaLocalClient:
         self._host = host
         self._username = username
         self._password = password
-        self._auth = aiohttp.BasicAuth(username, password)
-        self._session = session
-        self._owned_session = session is None
         self._verify_ssl = verify_ssl
         self._use_ssl = use_ssl
+        self._client: httpx.AsyncClient | None = None
+
         protocol = "https" if use_ssl else "http"
         self._base_url = f"{protocol}://{host}/action"
         self._headers = {
@@ -195,36 +191,25 @@ class VestaLocalClient:
         """Return the host address."""
         return self._host
 
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the aiohttp session.
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create the httpx client.
 
         Returns:
-            The aiohttp ClientSession instance.
+            The httpx AsyncClient instance.
         """
-        if self._session is None or self._session.closed:
-            connector: aiohttp.TCPConnector
-            if self._use_ssl:
-                # Create SSL context in executor to avoid blocking the event loop
-                if not self._verify_ssl:
-                    ssl_context = await asyncio.get_event_loop().run_in_executor(
-                        None, ssl.create_default_context
-                    )
-                    ssl_context.check_hostname = False
-                    ssl_context.verify_mode = ssl.CERT_NONE
-                    connector = aiohttp.TCPConnector(ssl=ssl_context)
-                else:
-                    ssl_context = await asyncio.get_event_loop().run_in_executor(
-                        None, ssl.create_default_context
-                    )
-                    connector = aiohttp.TCPConnector(ssl=ssl_context)
-            else:
-                # HTTP mode - no SSL context needed
-                connector = aiohttp.TCPConnector()
+        if self._client is None or self._client.is_closed:
+            # Use Basic Auth for Vesta/Climax panels
+            auth = httpx.BasicAuth(self._username, self._password)
 
-            self._session = aiohttp.ClientSession(connector=connector)
-            self._owned_session = True
+            self._client = httpx.AsyncClient(
+                auth=auth,
+                headers=self._headers,
+                timeout=httpx.Timeout(DEFAULT_TIMEOUT),
+                verify=self._verify_ssl,
+                follow_redirects=False,
+            )
 
-        return self._session
+        return self._client
 
     async def _request(
         self,
@@ -250,40 +235,45 @@ class VestaLocalClient:
             VestaApiError: If the API returns an error.
         """
         url = f"{self._base_url}/{endpoint}"
-        session = await self._get_session()
+        client = await self._get_client()
 
         last_error: Exception | None = None
 
         for attempt in range(retry_count + 1):
             try:
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
-                async with session.request(
-                    method,
-                    url,
-                    auth=self._auth,
-                    headers=self._headers,
-                    data=data,
-                    timeout=timeout,
-                ) as response:
-                    if response.status == 401:
-                        raise VestaAuthenticationError(
-                            f"Authentication failed for {self._host}"
-                        )
+                if method.upper() == "GET":
+                    response = await client.get(url)
+                else:
+                    response = await client.post(url, data=data)
 
-                    if response.status >= 400:
-                        text = await response.text()
+                if response.status_code == 401:
+                    raise VestaAuthenticationError(
+                        f"Authentication failed for {self._host}"
+                    )
+
+                if response.status_code >= 400:
+                    raise VestaApiError(
+                        f"API error {response.status_code}: {response.text}"
+                    )
+
+                # Check if response is JSON
+                content_type = response.headers.get("content-type", "")
+                if "application/json" not in content_type and "text/json" not in content_type:
+                    # Try to parse as JSON anyway (some panels don't set content-type correctly)
+                    try:
+                        return response.json()
+                    except Exception:
                         raise VestaApiError(
-                            f"API error {response.status}: {text}"
+                            f"Unexpected response type '{content_type}' from {url}: {response.text[:200]}"
                         )
 
-                    return await response.json()
+                return response.json()
 
-            except aiohttp.ClientError as err:
+            except httpx.ConnectError as err:
                 last_error = VestaConnectionError(
                     f"Connection to {self._host} failed: {err}"
                 )
                 if attempt < retry_count:
-                    # Exponential backoff: 1s, 2s, 4s...
                     wait_time = 2**attempt
                     _LOGGER.debug(
                         "Request failed, retrying in %ds (attempt %d/%d): %s",
@@ -295,7 +285,7 @@ class VestaLocalClient:
                     await asyncio.sleep(wait_time)
                 continue
 
-            except asyncio.TimeoutError:
+            except httpx.TimeoutException:
                 last_error = VestaConnectionError(
                     f"Connection to {self._host} timed out"
                 )
@@ -307,6 +297,18 @@ class VestaLocalClient:
                         attempt + 1,
                         retry_count + 1,
                     )
+                    await asyncio.sleep(wait_time)
+                continue
+
+            except (VestaAuthenticationError, VestaApiError):
+                raise
+
+            except httpx.HTTPError as err:
+                last_error = VestaConnectionError(
+                    f"HTTP error for {self._host}: {err}"
+                )
+                if attempt < retry_count:
+                    wait_time = 2**attempt
                     await asyncio.sleep(wait_time)
                 continue
 
@@ -327,7 +329,8 @@ class VestaLocalClient:
         """
         _LOGGER.debug("Testing authentication with %s", self._host)
         try:
-            await self._request("GET", ENDPOINT_LOGIN)
+            # Use panelCondGet to test auth (login endpoint returns HTML)
+            await self._request("GET", ENDPOINT_PANEL_STATUS)
             _LOGGER.debug("Authentication successful for %s", self._host)
             return True
         except VestaAuthenticationError:
@@ -463,8 +466,8 @@ class VestaLocalClient:
         return False
 
     async def close(self) -> None:
-        """Close the client session if we own it."""
-        if self._owned_session and self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
+        """Close the client session."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
             _LOGGER.debug("Client session closed")
