@@ -97,5 +97,5 @@ DIAG_GSM_SIGNAL: Final = "sig_gsm"
 DIAG_AC_FAILURE: Final = "ac_fail"
 
 # Default values
-DEFAULT_PORT: Final = 443
+DEFAULT_PORT: Final = 80
 DEFAULT_TIMEOUT: Final = 10  # seconds
