@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Vesta/Climax Local Connection",
+        "description": "Enter the connection details for your Vesta/Climax alarm panel.",
+        "data": {
+          "host": "Host (IP address or hostname)",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "host": "The IP address or hostname of your alarm panel (e.g., 192.168.1.100)",
+          "username": "The username for your alarm panel (usually 'admin')",
+          "password": "The password for your alarm panel"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Vesta/Climax Panel Discovered",
+        "description": "A Vesta/Climax alarm panel ({name}) was discovered at {host}. Enter the credentials to complete setup.",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "The username for your alarm panel (usually 'admin')",
+          "password": "The password for your alarm panel"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Vesta/Climax Panel",
+        "description": "Authentication failed for {host}. Please enter your new credentials.",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+    }
+  },
+  "entity": {
+    "alarm_control_panel": {
+      "alarm": {
+        "name": "Alarm"
+      }
+    },
+    "sensor": {
+      "gsm_signal": {
+        "name": "GSM Signal"
+      },
+      "battery_status": {
+        "name": "Battery Status"
+      },
+      "ac_status": {
+        "name": "AC Power"
+      },
+      "event_log": {
+        "name": "Event Log"
+      }
+    },
+    "binary_sensor": {
+      "battery": {
+        "name": "{device_name} Battery"
+      }
+    }
+  }
+}
