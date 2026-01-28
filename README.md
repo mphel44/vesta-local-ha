@@ -102,7 +102,7 @@ This integration is designed with security in mind:
 - 🏠 **Local Only** - No data leaves your network; no cloud dependencies
 - 🔀 **HTTP/HTTPS Support** - Choose based on your setup (HTTP for direct, HTTPS for reverse proxy)
 - 🔑 **HTTP Basic Auth** - Standard authentication mechanism used by the panel
-- 🛡️ **No Stored Credentials** - Credentials are stored securely in Home Assistant's encrypted storage
+- 🛡️ **Secure Credentials** - Credentials are managed locally by Home Assistant's config entries system
 
 ### Network Requirements
 
