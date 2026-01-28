@@ -29,10 +29,10 @@ DEFAULT_SCAN_INTERVAL: Final = 5  # seconds
 ALARM_MODE_TO_STATE: dict[str, AlarmControlPanelState] = {
     "Disarm": AlarmControlPanelState.DISARMED,
     "disarm": AlarmControlPanelState.DISARMED,
-    "Arm": AlarmControlPanelState.ARMED_AWAY,
-    "arm": AlarmControlPanelState.ARMED_AWAY,
-    "Home": AlarmControlPanelState.ARMED_HOME,
-    "home": AlarmControlPanelState.ARMED_HOME,
+    "Full Arm": AlarmControlPanelState.ARMED_AWAY,
+    "full arm": AlarmControlPanelState.ARMED_AWAY,
+    "Home Arm 1": AlarmControlPanelState.ARMED_HOME,
+    "home arm 1": AlarmControlPanelState.ARMED_HOME,
     "Night": AlarmControlPanelState.ARMED_NIGHT,
     "night": AlarmControlPanelState.ARMED_NIGHT,
 }
