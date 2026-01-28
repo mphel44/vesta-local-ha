@@ -2,6 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/mphel44/vesta-local-ha)](https://github.com/mphel44/vesta-local-ha/releases)
+[![License](https://img.shields.io/github/license/mphel44/vesta-local-ha)](LICENSE)
 
 A Home Assistant custom integration for **local control** of Vesta/Climax alarm panels (HSGW-MAX series and compatible models). This integration communicates directly with your panel over your local network - **no cloud required**.
 
