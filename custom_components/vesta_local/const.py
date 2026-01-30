@@ -59,6 +59,21 @@ DEVICE_TYPE_NAMES: dict[str, str] = {
     "Siren": "Siren",
 }
 
+# Device type icon mappings (Material Design Icons)
+DEVICE_TYPE_ICONS: dict[str, str] = {
+    "Door Contact": "mdi:door-sensor",
+    "IR": "mdi:motion-sensor",
+    "PIR": "mdi:motion-sensor",
+    "Smoke Detector": "mdi:smoke-detector-variant",
+    "CO Detector": "mdi:molecule-co",
+    "Water Sensor": "mdi:water-alert",
+    "Glass Break": "mdi:glass-fragile",
+    "Keypad": "mdi:dialpad",
+    "Remote": "mdi:remote",
+    "Siren": "mdi:bullhorn",
+    "SVGS": "mdi:vibrate",
+}
+
 # Binary sensor device class mappings
 DEVICE_TYPE_TO_BINARY_SENSOR_CLASS: dict[str, BinarySensorDeviceClass] = {
     "Door Contact": BinarySensorDeviceClass.DOOR,

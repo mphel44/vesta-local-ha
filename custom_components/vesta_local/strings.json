@@ -46,6 +46,24 @@
       "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vesta/Climax Local Options",
+        "description": "Update the credentials for your Vesta/Climax alarm panel.",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]",
+          "use_ssl": "Use HTTPS"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    }
+  },
   "entity": {
     "alarm_control_panel": {
       "alarm": {

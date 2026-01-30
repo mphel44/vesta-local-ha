@@ -50,6 +50,24 @@
       "reauth_successful": "Re-authentication successful."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vesta/Climax Local Options",
+        "description": "Update the credentials for your Vesta/Climax alarm panel.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "use_ssl": "Use HTTPS"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the panel. Please check the host address and network connection.",
+      "invalid_auth": "Invalid username or password.",
+      "unknown": "An unknown error occurred."
+    }
+  },
   "entity": {
     "alarm_control_panel": {
       "alarm": {
