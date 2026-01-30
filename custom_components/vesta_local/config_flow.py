@@ -283,7 +283,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         config_entry: ConfigEntry,
     ) -> VestaLocalOptionsFlow:
         """Get the options flow for this handler."""
-        return VestaLocalOptionsFlow(config_entry)
+        return VestaLocalOptionsFlow()
 
 
 class VestaLocalOptionsFlow(OptionsFlow):
@@ -291,10 +291,6 @@ class VestaLocalOptionsFlow(OptionsFlow):
 
     This allows users to reconfigure credentials and SSL after initial setup.
     """
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
