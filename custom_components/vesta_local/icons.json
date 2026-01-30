@@ -1,0 +1,39 @@
+{
+  "entity": {
+    "alarm_control_panel": {
+      "alarm": {
+        "default": "mdi:shield-home"
+      }
+    },
+    "sensor": {
+      "gsm_signal": {
+        "default": "mdi:signal"
+      },
+      "battery_status": {
+        "default": "mdi:battery",
+        "state": {
+          "low": "mdi:battery-alert",
+          "charging": "mdi:battery-charging"
+        }
+      },
+      "ac_status": {
+        "default": "mdi:power-plug",
+        "state": {
+          "Failure": "mdi:power-plug-off"
+        }
+      },
+      "event_log": {
+        "default": "mdi:history"
+      }
+    },
+    "binary_sensor": {
+      "battery": {
+        "default": "mdi:battery",
+        "state": {
+          "on": "mdi:battery-alert",
+          "off": "mdi:battery"
+        }
+      }
+    }
+  }
+}

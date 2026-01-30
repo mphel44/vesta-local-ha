@@ -7,7 +7,12 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 
@@ -281,12 +286,80 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         return VestaLocalOptionsFlow(config_entry)
 
 
-class VestaLocalOptionsFlow:
+class VestaLocalOptionsFlow(OptionsFlow):
     """Handle options flow for Vesta/Climax Local.
 
-    This allows users to reconfigure options after initial setup.
+    This allows users to reconfigure credentials and SSL after initial setup.
     """
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the options flow init step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            host = self.config_entry.data[CONF_HOST]
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
+            use_ssl = user_input.get(CONF_USE_SSL, False)
+
+            # Test connection with new credentials
+            client = VestaLocalClient(
+                host=host,
+                username=username,
+                password=password,
+                verify_ssl=False,
+                use_ssl=use_ssl,
+            )
+            try:
+                await client.authenticate()
+            except VestaAuthenticationError:
+                errors["base"] = "invalid_auth"
+            except VestaConnectionError:
+                errors["base"] = "cannot_connect"
+            except Exception:
+                errors["base"] = "unknown"
+            finally:
+                await client.close()
+
+            if not errors:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={
+                        CONF_HOST: host,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                        CONF_USE_SSL: use_ssl,
+                    },
+                )
+                await self.hass.config_entries.async_reload(
+                    self.config_entry.entry_id
+                )
+                return self.async_create_entry(title="", data={})
+
+        # Pre-fill with current values
+        current = self.config_entry.data
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_USERNAME, default=current.get(CONF_USERNAME, "")
+                ): str,
+                vol.Required(
+                    CONF_PASSWORD, default=current.get(CONF_PASSWORD, "")
+                ): str,
+                vol.Optional(
+                    CONF_USE_SSL, default=current.get(CONF_USE_SSL, False)
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+        )
