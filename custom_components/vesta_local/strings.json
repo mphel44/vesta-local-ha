@@ -64,6 +64,9 @@
       },
       "event_log": {
         "name": "Event Log"
+      },
+      "last_event": {
+        "name": "Last Event"
       }
     },
     "binary_sensor": {

@@ -18,6 +18,7 @@ This integration is inspired by [koying's smarthomesec_ha](https://github.com/ko
 - 📡 **Binary Sensors** - Door contacts, motion detectors, smoke/CO detectors, water leak sensors, glass break detectors
 - 🔋 **Device Battery Monitoring** - Dedicated battery status sensor for each wireless device
 - 📜 **Event Log** - Access the panel's event history
+- 📋 **Per-device Event Log** - Each device gets a "Last Event" sensor with its full event history
 
 ## 📦 Installation
 
@@ -100,6 +101,7 @@ The alarm control panel entity supports the following modes:
 - 🔋 Panel Battery Status
 - 🔌 AC Power Status
 - 📜 Event Log (last event + full history in attributes)
+- 📋 Per-device Last Event (last action + full device event history in attributes)
 - 🪫 Per-device Battery Status (Low Battery alerts)
 
 ## 🛠️ Technical Details
@@ -111,12 +113,12 @@ The alarm control panel entity supports the following modes:
 | `/action/panelCondGet` | Get panel status (mode, battery, GSM signal) |
 | `/action/deviceListGet` | Get list of all enrolled devices |
 | `/action/panelCondPost` | Set alarm mode |
-| `/action/eventLogGet` | Get event history |
+| `/action/logsGet` | Get event history (POST with `max_count`) |
 
 ### Polling
 
 - Default interval: 5 seconds
-- Panel status and device list are fetched concurrently for efficiency
+- Panel status, device list, and event log are fetched concurrently for efficiency
 - Exponential backoff retry logic for network resilience
 
 ## 🤝 Contributing

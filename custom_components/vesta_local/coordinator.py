@@ -83,9 +83,10 @@ class VestaDataUpdateCoordinator(DataUpdateCoordinator[VestaData]):
         try:
             data = await self.client.get_all_data()
             _LOGGER.debug(
-                "Updated data: mode=%s, devices=%d",
+                "Updated data: mode=%s, devices=%d, events=%d",
                 data.panel.mode,
                 len(data.devices),
+                len(data.event_log),
             )
             return data
 

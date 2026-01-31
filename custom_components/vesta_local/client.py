@@ -102,18 +102,24 @@ class EventLogEntry(BaseModel):
     """Represents an event log entry from the panel.
 
     Attributes:
-        time: Timestamp of the event.
-        event: Event description.
-        zone: Zone number (if applicable).
-        area: Area number (if applicable).
+        log_time: Timestamp of the event.
+        area: Area number.
+        mode: Alarm mode at time of event.
+        action: Action/event description.
         user: User name (if applicable).
+        source: Source zone/device.
+        device_type: Type of device involved.
+        msg: Additional message.
     """
 
-    time: str = Field(default="")
-    event: str = Field(default="")
-    zone: str = Field(default="")
+    log_time: str = Field(default="")
     area: str = Field(default="")
+    mode: str = Field(default="")
+    action: str = Field(default="")
     user: str = Field(default="")
+    source: str = Field(default="")
+    device_type: str = Field(default="")
+    msg: str = Field(default="")
 
     model_config = {"populate_by_name": True}
 
@@ -125,10 +131,12 @@ class VestaData:
     Attributes:
         panel: The current panel status.
         devices: List of all device statuses.
+        event_log: List of recent event log entries.
     """
 
     panel: PanelStatus
     devices: list[DeviceStatus]
+    event_log: list[EventLogEntry]
 
 
 class VestaAuthenticationError(Exception):
@@ -389,23 +397,40 @@ class VestaLocalClient:
     async def get_all_data(self) -> VestaData:
         """Get all data from the panel in a single call.
 
-        This method fetches both panel status and device list concurrently.
+        This method fetches panel status, device list, and event log
+        concurrently. Event log failures are non-critical and degrade
+        gracefully to an empty list.
 
         Returns:
-            VestaData object containing panel and device status.
+            VestaData object containing panel status, devices, and event log.
         """
         _LOGGER.debug("Fetching all data from %s", self._host)
         panel_task = self.get_panel_status()
         devices_task = self.get_devices()
+        event_log_task = self.get_event_log()
 
-        panel, devices = await asyncio.gather(panel_task, devices_task)
-        return VestaData(panel=panel, devices=devices)
+        panel, devices, event_log_result = await asyncio.gather(
+            panel_task, devices_task, event_log_task, return_exceptions=True
+        )
 
-    async def get_event_log(self, limit: int = 50) -> list[EventLogEntry]:
+        # Panel and devices are critical -- re-raise their exceptions
+        if isinstance(panel, BaseException):
+            raise panel
+        if isinstance(devices, BaseException):
+            raise devices
+
+        # Event log is non-critical -- degrade gracefully
+        if isinstance(event_log_result, BaseException):
+            _LOGGER.warning("Failed to fetch event log: %s", event_log_result)
+            event_log_result = []
+
+        return VestaData(panel=panel, devices=devices, event_log=event_log_result)
+
+    async def get_event_log(self, max_count: int = 1000) -> list[EventLogEntry]:
         """Get the event log from the panel.
 
         Args:
-            limit: Maximum number of events to return. Default is 50.
+            max_count: Maximum number of log entries to request. Default is 20.
 
         Returns:
             List of EventLogEntry objects, sorted by most recent first.
@@ -415,13 +440,13 @@ class VestaLocalClient:
             VestaApiError: If parsing fails.
         """
         _LOGGER.debug("Fetching event log from %s", self._host)
-        json_data = await self._request("GET", ENDPOINT_EVENT_LOG)
+        json_data = await self._request(
+            "POST", ENDPOINT_EVENT_LOG, data={"max_count": str(max_count)}
+        )
 
         try:
             events = []
-            # The API typically returns events in a "logrows" array
-            event_rows = json_data.get("logrows", json_data.get("events", []))
-            for event_data in event_rows[:limit]:
+            for event_data in json_data.get("logrows", []):
                 try:
                     events.append(EventLogEntry.model_validate(event_data))
                 except Exception as err:

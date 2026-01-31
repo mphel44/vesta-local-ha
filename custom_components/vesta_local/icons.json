@@ -24,6 +24,9 @@
       },
       "event_log": {
         "default": "mdi:history"
+      },
+      "last_event": {
+        "default": "mdi:history"
       }
     },
     "binary_sensor": {
