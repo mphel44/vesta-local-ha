@@ -6,6 +6,7 @@ battery status and GSM signal strength.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import (
@@ -17,11 +18,11 @@ from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .entity import VestaPanelEntity
+from .client import DeviceStatus, EventLogEntry
+from .entity import VestaDeviceEntity, VestaPanelEntity
 
 if TYPE_CHECKING:
     from . import VestaConfigEntry
-    from .client import VestaLocalClient
     from .coordinator import VestaDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,8 +49,14 @@ async def async_setup_entry(
         VestaEventLogSensor(coordinator, entry.entry_id),
     ]
 
+    if coordinator.data:
+        for device in coordinator.data.devices:
+            entities.append(
+                VestaDeviceLastEventSensor(coordinator, device, entry.entry_id)
+            )
+
     async_add_entities(entities)
-    _LOGGER.debug("Added %d diagnostic sensor entities", len(entities))
+    _LOGGER.debug("Added %d sensor entities", len(entities))
 
 
 class VestaGsmSignalSensor(VestaPanelEntity, SensorEntity):
@@ -223,6 +230,7 @@ class VestaEventLogSensor(VestaPanelEntity, SensorEntity):
 
     This sensor displays the most recent event from the panel's
     event log and provides the full log in attributes.
+    Data is read from the coordinator (no independent API calls).
 
     Attributes:
         _attr_name: The entity name.
@@ -233,6 +241,8 @@ class VestaEventLogSensor(VestaPanelEntity, SensorEntity):
     _attr_name = "Event Log"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:history"
+
+    _ZONE_RE = re.compile(r"Zone(\d+)")
 
     def __init__(
         self,
@@ -247,35 +257,53 @@ class VestaEventLogSensor(VestaPanelEntity, SensorEntity):
         """
         super().__init__(coordinator, entry_id)
         self._attr_unique_id = f"{entry_id}_event_log"
-        self._event_log: list[dict[str, str]] = []
-        self._last_event: str | None = None
 
-    async def async_update(self) -> None:
-        """Fetch the latest event log from the panel.
+    def _build_zone_map(self) -> dict[int, dict[str, str]]:
+        """Build a mapping from zone number to device info.
 
-        This method is called periodically to refresh the event log data.
+        Returns:
+            Dict mapping zone number to device_id and name.
         """
-        try:
-            client: VestaLocalClient = self.coordinator.client
-            events = await client.get_event_log(limit=50)
-            self._event_log = [
-                {
-                    "time": event.time,
-                    "event": event.event,
-                    "zone": event.zone,
-                    "area": event.area,
-                    "user": event.user,
-                }
-                for event in events
-            ]
-            if events:
-                latest = events[0]
-                self._last_event = f"{latest.time}: {latest.event}"
-            else:
-                self._last_event = "No events"
-        except Exception as err:
-            _LOGGER.warning("Failed to fetch event log: %s", err)
-            # Keep the previous state on error
+        if self.coordinator.data is None:
+            return {}
+        return {
+            device.zone: {
+                "device_id": device.device_id,
+                "device_name": device.name,
+            }
+            for device in self.coordinator.data.devices
+        }
+
+    def _enrich_events(self) -> list[dict[str, str]]:
+        """Build the enriched event list from coordinator data.
+
+        Returns:
+            List of event dicts with device_id/device_name when matched.
+        """
+        if self.coordinator.data is None:
+            return []
+        zone_map = self._build_zone_map()
+        enriched = []
+        for event in self.coordinator.data.event_log:
+            entry: dict[str, str] = {
+                "time": event.log_time,
+                "area": event.area,
+                "mode": event.mode,
+                "action": event.action,
+                "user": event.user,
+                "source": event.source,
+                "device_type": event.device_type,
+                "msg": event.msg,
+            }
+            match = self._ZONE_RE.search(event.source)
+            if match:
+                zone_num = int(match.group(1))
+                device_info = zone_map.get(zone_num)
+                if device_info:
+                    entry["device_id"] = device_info["device_id"]
+                    entry["device_name"] = device_info["device_name"]
+            enriched.append(entry)
+        return enriched
 
     @property
     def native_value(self) -> str | None:
@@ -284,13 +312,105 @@ class VestaEventLogSensor(VestaPanelEntity, SensorEntity):
         Returns:
             The most recent event as a string or None.
         """
-        return self._last_event
+        if self.coordinator.data is None or not self.coordinator.data.event_log:
+            return None
+        latest = self.coordinator.data.event_log[0]
+        return f"{latest.log_time}: {latest.action}"
 
     @property
     def extra_state_attributes(self) -> dict[str, list[dict[str, str]]] | None:
         """Return the full event log as attributes.
 
         Returns:
-            Dictionary containing the full event log.
+            Dictionary containing the full enriched event log.
         """
-        return {"events": self._event_log} if self._event_log else None
+        enriched = self._enrich_events()
+        return {"events": enriched} if enriched else None
+
+
+class VestaDeviceLastEventSensor(VestaDeviceEntity, SensorEntity):
+    """Sensor showing event log entries for a specific device/zone.
+
+    This sensor displays the most recent event action as its state
+    and provides all matching events in attributes.
+
+    Attributes:
+        _attr_name: The entity name.
+        _attr_entity_category: Diagnostic category.
+        _attr_icon: The icon for the sensor.
+    """
+
+    _attr_name = "Last Event"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:history"
+
+    _ZONE_RE = re.compile(r"Zone(\d+)")
+
+    def __init__(
+        self,
+        coordinator: VestaDataUpdateCoordinator,
+        device: DeviceStatus,
+        entry_id: str,
+    ) -> None:
+        """Initialize the device last event sensor.
+
+        Args:
+            coordinator: The data update coordinator.
+            device: The device status information.
+            entry_id: The config entry ID.
+        """
+        super().__init__(coordinator, device, entry_id)
+        self._attr_unique_id = f"{entry_id}_{device.device_id}_last_event"
+
+    def _find_device_events(self) -> list[EventLogEntry]:
+        """Find all event log entries matching this device's zone.
+
+        Returns:
+            List of matching EventLogEntry objects, most recent first.
+        """
+        if self.coordinator.data is None:
+            return []
+        events = []
+        for event in self.coordinator.data.event_log:
+            match = self._ZONE_RE.search(event.source)
+            if match and int(match.group(1)) == self._zone:
+                events.append(event)
+        return events
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the most recent event action for this device.
+
+        Returns:
+            The action string or None if no events found.
+        """
+        events = self._find_device_events()
+        if not events:
+            return None
+        return events[0].action
+
+    @property
+    def extra_state_attributes(self) -> dict[str, list[dict[str, str]]] | None:
+        """Return all events for this device as attributes.
+
+        Returns:
+            Dictionary containing the list of events for this device.
+        """
+        events = self._find_device_events()
+        if not events:
+            return None
+        return {
+            "events": [
+                {
+                    "time": event.log_time,
+                    "area": event.area,
+                    "mode": event.mode,
+                    "action": event.action,
+                    "user": event.user,
+                    "source": event.source,
+                    "device_type": event.device_type,
+                    "msg": event.msg,
+                }
+                for event in events
+            ]
+        }

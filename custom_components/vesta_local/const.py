@@ -20,7 +20,7 @@ ENDPOINT_LOGIN: Final = "login"
 ENDPOINT_PANEL_STATUS: Final = "panelCondGet"
 ENDPOINT_DEVICE_LIST: Final = "deviceListGet"
 ENDPOINT_PANEL_SET: Final = "panelCondPost"
-ENDPOINT_EVENT_LOG: Final = "eventLogGet"
+ENDPOINT_EVENT_LOG: Final = "logsGet"
 
 # Polling configuration
 DEFAULT_SCAN_INTERVAL: Final = 5  # seconds
