@@ -52,9 +52,11 @@ If your panel supports Zeroconf/mDNS, Home Assistant will automatically detect i
 3. Search for "Vesta/Climax Local"
 4. Enter your panel's details:
    - **Host**: IP address or hostname of your panel (e.g., `192.168.1.100`)
-   - **Username**: Panel username (usually `admin`)
-   - **Password**: Panel password
+   - **Username**: Panel username (default: `admin`)
+   - **Password**: Panel password (default: `cX+HsA*7F1`)
    - **Use HTTPS**: Enable if your panel uses HTTPS (e.g., via a reverse proxy)
+
+> **Note**: The default credentials can be found on page 9 of the [installation manual](https://www.scribd.com/document/715294461/Vesta-HSGW-MAX-20220330). The username and password can be changed later in the panel configuration webpage.
 
 ### Direct Connection (Default)
 
