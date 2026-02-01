@@ -379,15 +379,18 @@ class VestaDeviceLastEventSensor(VestaDeviceEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        """Return the most recent event action for this device.
+        """Return the most recent event for this device.
+
+        Includes the timestamp so HA detects a state change even when
+        the same action occurs multiple times in a row.
 
         Returns:
-            The action string or None if no events found.
+            The timestamp and action string, or None if no events found.
         """
         events = self._find_device_events()
         if not events:
             return None
-        return events[0].action
+        return f"{events[0].log_time}: {events[0].action}"
 
     @property
     def extra_state_attributes(self) -> dict[str, list[dict[str, str]]] | None:
