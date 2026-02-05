@@ -102,8 +102,8 @@ The alarm control panel entity supports the following modes:
 - 📶 GSM Signal Strength (%)
 - 🔋 Panel Battery Status
 - 🔌 AC Power Status
-- 📜 Event Log (last event + full history in attributes)
-- 📋 Per-device Last Event (last action + full device event history in attributes)
+- 📜 Event Log (last event + 20 most recent events in attributes)
+- 📋 Per-device Last Event (last action + 20 most recent device events in attributes)
 - 🪫 Per-device Battery Status (Low Battery alerts)
 
 ## 🛠️ Technical Details

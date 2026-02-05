@@ -27,6 +27,10 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Maximum number of events to store in sensor attributes to avoid exceeding
+# Home Assistant's 16384 byte state attribute limit
+MAX_EVENTS_IN_ATTRIBUTES = 20
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -319,12 +323,14 @@ class VestaEventLogSensor(VestaPanelEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, list[dict[str, str]]] | None:
-        """Return the full event log as attributes.
+        """Return the most recent events as attributes.
 
         Returns:
-            Dictionary containing the full enriched event log.
+            Dictionary containing the most recent enriched events,
+            limited to MAX_EVENTS_IN_ATTRIBUTES to avoid exceeding
+            Home Assistant's state attribute size limit.
         """
-        enriched = self._enrich_events()
+        enriched = self._enrich_events()[:MAX_EVENTS_IN_ATTRIBUTES]
         return {"events": enriched} if enriched else None
 
 
@@ -394,12 +400,14 @@ class VestaDeviceLastEventSensor(VestaDeviceEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, list[dict[str, str]]] | None:
-        """Return all events for this device as attributes.
+        """Return the most recent events for this device as attributes.
 
         Returns:
-            Dictionary containing the list of events for this device.
+            Dictionary containing the list of events for this device,
+            limited to MAX_EVENTS_IN_ATTRIBUTES to avoid exceeding
+            Home Assistant's state attribute size limit.
         """
-        events = self._find_device_events()
+        events = self._find_device_events()[:MAX_EVENTS_IN_ATTRIBUTES]
         if not events:
             return None
         return {
