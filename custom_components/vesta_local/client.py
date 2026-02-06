@@ -20,6 +20,7 @@ from .const import (
     ENDPOINT_LOGIN,
     ENDPOINT_PANEL_SET,
     ENDPOINT_PANEL_STATUS,
+    ENDPOINT_REPORTED_EVENTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -124,6 +125,33 @@ class EventLogEntry(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class ReportedEvent(BaseModel):
+    """Represents a reported event from the panel.
+
+    Attributes:
+        uid: Unique identifier (increasing) for the event.
+        new_event: Event type (e.g., "Trigger", "Restore").
+        cid_event: Contact ID event code (e.g., "130", "131", "400").
+    """
+
+    uid: int
+    new_event: str = Field(default="")
+    cid_event: str = Field(default="")
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("uid", mode="before")
+    @classmethod
+    def parse_uid(cls, value: Any) -> int:
+        """Parse uid to integer."""
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return 0
+
+
 @dataclass
 class VestaData:
     """Container for all data retrieved from the panel.
@@ -132,11 +160,13 @@ class VestaData:
         panel: The current panel status.
         devices: List of all device statuses.
         event_log: List of recent event log entries.
+        reported_events: List of reported events for triggered state detection.
     """
 
     panel: PanelStatus
     devices: list[DeviceStatus]
     event_log: list[EventLogEntry]
+    reported_events: list[ReportedEvent]
 
 
 class VestaAuthenticationError(Exception):
@@ -397,20 +427,23 @@ class VestaLocalClient:
     async def get_all_data(self) -> VestaData:
         """Get all data from the panel in a single call.
 
-        This method fetches panel status, device list, and event log
-        concurrently. Event log failures are non-critical and degrade
-        gracefully to an empty list.
+        This method fetches panel status, device list, event log, and reported
+        events concurrently. Event log and reported events failures are
+        non-critical and degrade gracefully to empty lists.
 
         Returns:
-            VestaData object containing panel status, devices, and event log.
+            VestaData object containing panel status, devices, event log,
+            and reported events.
         """
         _LOGGER.debug("Fetching all data from %s", self._host)
         panel_task = self.get_panel_status()
         devices_task = self.get_devices()
         event_log_task = self.get_event_log()
+        reported_events_task = self.get_reported_events()
 
-        panel, devices, event_log_result = await asyncio.gather(
-            panel_task, devices_task, event_log_task, return_exceptions=True
+        panel, devices, event_log_result, reported_events_result = await asyncio.gather(
+            panel_task, devices_task, event_log_task, reported_events_task,
+            return_exceptions=True
         )
 
         # Panel and devices are critical -- re-raise their exceptions
@@ -424,7 +457,17 @@ class VestaLocalClient:
             _LOGGER.warning("Failed to fetch event log: %s", event_log_result)
             event_log_result = []
 
-        return VestaData(panel=panel, devices=devices, event_log=event_log_result)
+        # Reported events are non-critical -- degrade gracefully
+        if isinstance(reported_events_result, BaseException):
+            _LOGGER.warning("Failed to fetch reported events: %s", reported_events_result)
+            reported_events_result = []
+
+        return VestaData(
+            panel=panel,
+            devices=devices,
+            event_log=event_log_result,
+            reported_events=reported_events_result,
+        )
 
     async def get_event_log(self, max_count: int = 1000) -> list[EventLogEntry]:
         """Get the event log from the panel.
@@ -458,6 +501,41 @@ class VestaLocalClient:
         except Exception as err:
             _LOGGER.error("Failed to parse event log: %s", err)
             raise VestaApiError(f"Failed to parse event log: {err}") from err
+
+    async def get_reported_events(self, max_count: int = 200) -> list[ReportedEvent]:
+        """Get reported events from the panel for triggered state detection.
+
+        Args:
+            max_count: Maximum number of events to request. Default is 200.
+
+        Returns:
+            List of ReportedEvent objects, sorted by uid (highest = most recent).
+
+        Raises:
+            VestaConnectionError: If connection fails.
+            VestaApiError: If parsing fails.
+        """
+        _LOGGER.debug("Fetching reported events from %s", self._host)
+        json_data = await self._request(
+            "POST", ENDPOINT_REPORTED_EVENTS, data={"max_count": str(max_count)}
+        )
+
+        try:
+            events = []
+            for event_data in json_data.get("rptrows", []):
+                try:
+                    events.append(ReportedEvent.model_validate(event_data))
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Failed to parse reported event: %s",
+                        err,
+                    )
+            # Sort by uid descending (highest uid = most recent)
+            events.sort(key=lambda e: e.uid, reverse=True)
+            return events
+        except Exception as err:
+            _LOGGER.error("Failed to parse reported events: %s", err)
+            raise VestaApiError(f"Failed to parse reported events: {err}") from err
 
     async def set_alarm_mode(self, mode: int, area: int = 1) -> bool:
         """Set the alarm mode.

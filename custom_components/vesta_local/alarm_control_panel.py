@@ -12,7 +12,13 @@ from homeassistant.components.alarm_control_panel import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ALARM_MODE_TO_STATE, ALARM_STATE_TO_MODE, DOMAIN
+from .const import (
+    ALARM_MODE_TO_STATE,
+    ALARM_STATE_TO_MODE,
+    CID_DISARM_EVENTS,
+    CID_TRIGGER_EVENTS,
+    DOMAIN,
+)
 from .entity import VestaPanelEntity
 
 if TYPE_CHECKING:
@@ -83,11 +89,18 @@ class VestaAlarmControlPanel(VestaPanelEntity, AlarmControlPanelEntity):
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the current alarm state.
 
+        Checks reported events first to detect TRIGGERED state, then falls
+        back to the standard panel mode.
+
         Returns:
             The current AlarmControlPanelState or None if unknown.
         """
         if self.coordinator.data is None:
             return None
+
+        # Check reported events for triggered state
+        if self._is_triggered():
+            return AlarmControlPanelState.TRIGGERED
 
         mode = self.coordinator.data.panel.mode
         state = ALARM_MODE_TO_STATE.get(mode)
@@ -97,6 +110,38 @@ class VestaAlarmControlPanel(VestaPanelEntity, AlarmControlPanelEntity):
             return None
 
         return state
+
+    def _is_triggered(self) -> bool:
+        """Check if alarm is in triggered state based on reported events.
+
+        The alarm is triggered if the most recent event (highest UID) has
+        new_event == "Trigger" and cid_event in CID_TRIGGER_EVENTS.
+
+        The triggered state is reset if the most recent event is:
+        - A disarm event (cid_event in CID_DISARM_EVENTS)
+        - A restore event (new_event == "Restore")
+
+        Returns:
+            True if the alarm is currently triggered, False otherwise.
+        """
+        if self.coordinator.data is None:
+            return False
+
+        reported_events = self.coordinator.data.reported_events
+        if not reported_events:
+            return False
+
+        # Events are sorted by uid descending, so first event is most recent
+        latest_event = reported_events[0]
+
+        # Check if latest event is a trigger event
+        if (
+            latest_event.new_event == "Trigger"
+            and latest_event.cid_event in CID_TRIGGER_EVENTS
+        ):
+            return True
+
+        return False
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command.

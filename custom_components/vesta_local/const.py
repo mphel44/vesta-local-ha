@@ -21,6 +21,7 @@ ENDPOINT_PANEL_STATUS: Final = "panelCondGet"
 ENDPOINT_DEVICE_LIST: Final = "deviceListGet"
 ENDPOINT_PANEL_SET: Final = "panelCondPost"
 ENDPOINT_EVENT_LOG: Final = "logsGet"
+ENDPOINT_REPORTED_EVENTS: Final = "reportEventListGet"
 
 # Polling configuration
 DEFAULT_SCAN_INTERVAL: Final = 5  # seconds
@@ -111,6 +112,10 @@ SENSOR_STATUS_OFF: set[str] = {
 DIAG_BATTERY: Final = "battery"
 DIAG_GSM_SIGNAL: Final = "sig_gsm"
 DIAG_AC_FAILURE: Final = "ac_fail"
+
+# Contact ID codes for triggered alarm detection
+CID_TRIGGER_EVENTS: Final[set[str]] = {"130", "131", "132"}
+CID_DISARM_EVENTS: Final[set[str]] = {"400", "401"}
 
 # Default values
 DEFAULT_PORT: Final = 80

@@ -15,6 +15,7 @@ This integration is inspired by [koying's smarthomesec_ha](https://github.com/ko
 - 🔒 **100% Local Control** - All communication stays on your local network
 - ⚡ **Responsive** - 5-second polling interval for near real-time updates
 - 🚨 **Alarm Control Panel** - Arm/Disarm in multiple modes (Away, Home, Night) - no code required
+- 🔔 **Triggered State Detection** - Real-time alarm trigger detection via Contact ID events
 - 📡 **Binary Sensors** - Door contacts, motion detectors, smoke/CO detectors, water leak sensors, glass break detectors
 - 🔋 **Device Battery Monitoring** - Dedicated battery status sensor for each wireless device
 - 📜 **Event Log** - Access the panel's event history
@@ -79,8 +80,17 @@ The alarm control panel entity supports the following modes:
 - **Arm Away** - Full arm mode
 - **Arm Home** - Home arm mode (partial perimeter)
 - **Arm Night** - Night arm mode
+- **Triggered** - Automatically detected when an alarm is triggered
 
 > **Note**: No code is required to arm or disarm the alarm through this integration. The panel authenticates via HTTP Basic Auth with your configured credentials.
+
+### Triggered State Detection
+
+The integration monitors reported events from the panel to detect alarm triggers in real-time. The alarm state changes to **Triggered** when:
+- The most recent event has `new_event == "Trigger"`
+- The Contact ID code (`cid_event`) is one of: `130` (Burglary), `131` (Perimeter), or `132` (Interior)
+
+The triggered state automatically resets when a new event occurs (disarm or restore).
 
 ## 🎛️ Supported Devices
 
@@ -116,6 +126,7 @@ The alarm control panel entity supports the following modes:
 | `/action/deviceListGet` | Get list of all enrolled devices |
 | `/action/panelCondPost` | Set alarm mode |
 | `/action/logsGet` | Get event history (POST with `max_count`) |
+| `/action/reportEventListGet` | Get reported events for triggered state detection (POST with `max_count`) |
 
 ### Polling
 
