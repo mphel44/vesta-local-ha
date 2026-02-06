@@ -12,7 +12,7 @@ from homeassistant.components.alarm_control_panel import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ALARM_MODE_TO_STATE, ALARM_STATE_TO_MODE, DOMAIN
+from .const import ALARM_MODE_TO_STATE, ALARM_STATE_TO_MODE, ARMED_STATES, DOMAIN, SENSOR_STATUS_ON
 from .entity import VestaPanelEntity
 
 if TYPE_CHECKING:
@@ -95,6 +95,13 @@ class VestaAlarmControlPanel(VestaPanelEntity, AlarmControlPanelEntity):
         if state is None:
             _LOGGER.warning("Unknown alarm mode: %s", mode)
             return None
+
+        # Check for TRIGGERED state when armed
+        if state in ARMED_STATES and any(
+            device.status in SENSOR_STATUS_ON
+            for device in self.coordinator.data.devices
+        ):
+            return AlarmControlPanelState.TRIGGERED
 
         return state
 

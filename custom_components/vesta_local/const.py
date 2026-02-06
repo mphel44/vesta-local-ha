@@ -37,6 +37,13 @@ ALARM_MODE_TO_STATE: dict[str, AlarmControlPanelState] = {
     "night": AlarmControlPanelState.ARMED_NIGHT,
 }
 
+# Armed states that can transition to TRIGGERED
+ARMED_STATES: set[AlarmControlPanelState] = {
+    AlarmControlPanelState.ARMED_AWAY,
+    AlarmControlPanelState.ARMED_HOME,
+    AlarmControlPanelState.ARMED_NIGHT,
+}
+
 # Alarm mode mappings (Home Assistant -> Panel POST value)
 ALARM_STATE_TO_MODE: dict[str, int] = {
     "disarm": 0,

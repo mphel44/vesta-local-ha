@@ -79,6 +79,7 @@ The alarm control panel entity supports the following modes:
 - **Arm Away** - Full arm mode
 - **Arm Home** - Home arm mode (partial perimeter)
 - **Arm Night** - Night arm mode
+- **Triggered** - Automatically shown when a sensor is triggered while the alarm is armed
 
 > **Note**: No code is required to arm or disarm the alarm through this integration. The panel authenticates via HTTP Basic Auth with your configured credentials.
 
