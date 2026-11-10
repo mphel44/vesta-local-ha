@@ -1,0 +1,23 @@
+{
+  "senrows": [
+{"area": 1, "zone": 1, "type": 9, "type_f": "IR", "name": "Comedor", 
+"cond": "", "cond_ok": "1", "battery": "", "battery_ok": "1", 
+"bus": 0, 
+"tamper": "", "tamper_ok": "1", "bypass": "No", "temp_bypass": "0", "rssi": "N/A", 
+"status": "", "id": "IN:01", "su": 0},
+{"area": 1, "zone": 2, "type": 9, "type_f": "IR", "name": "Pasillo habitaciones", 
+"cond": "", "cond_ok": "1", "battery": "", "battery_ok": "1", 
+"bus": 0, 
+"tamper": "", "tamper_ok": "1", "bypass": "No", "temp_bypass": "0", "rssi": "N/A", 
+"status": "", "id": "IN:02", "su": 0},
+{"area": 1, "zone": 3, "type": 27, "type_f": "IR Camera", "name": "", 
+"cond": "", "cond_ok": "1", "battery": "", "battery_ok": "1", 
+"bus": 1, 
+"tamper": "", "tamper_ok": "1", "bypass": "No", "temp_bypass": "0", "rssi": "N/A", 
+"status": "", "id": "IN:032a4e00", "su": 1},
+{"area": 1, "zone": 4, "type": 17, "type_f": "Keypad", "name": "", 
+"cond": "", "cond_ok": "1", "battery": "", "battery_ok": "1", 
+"bus": 1, 
+"tamper": "", "tamper_ok": "1", "bypass": "No", "temp_bypass": "0", "rssi": "N/A", 
+"status": "", "id": "RF:037fdc70", "su": 1}]
+}

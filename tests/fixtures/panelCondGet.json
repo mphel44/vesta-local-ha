@@ -1,0 +1,36 @@
+{
+  "updates" : {
+    "mode_a1" : "Disarm",
+    "mode_a2" : "Disarm",
+    "mode_a3" : "Disarm",
+    "mode_a4" : "Disarm",
+    "mode_a5" : "Disarm",
+    "mode_a6" : "Disarm",
+    "mode_a7" : "Disarm",
+    "mode_a8" : "Disarm",
+    "battery_ok" : "0",
+    "battery" : "Battery Missing/Dead",
+    "ext_battery_ok" : "1",
+    "ext_battery" : "N/A",
+    "tamper_ok" : "1",
+    "tamper" : "Normal",
+    "interference_ok" : "1",
+    "interference" : "Normal",
+    "ac_activation_ok" : "1",
+    "ac_activation" : "Normal",
+    "sys_in_inst": "System in maintenance",
+    "rssi" : "1",
+    "sig_gsm_ok" : "0",
+    "sig_gsm" : "N/A"
+  },
+  "forms" : {
+    "pcondform1" : {
+      "mode" : "0",
+      "f_arm" : "0"
+    },
+    "pcondform2" : {
+      "mode" : "0",
+      "f_arm" : "0"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Test dependencies. Home Assistant itself is only needed for the helpers the
+# integration imports (homeassistant.util.dt, the binary_sensor device classes
+# and DeviceInfo); the suite does not spin up a Home Assistant instance.
+homeassistant
+pydantic>=2.0.0
+httpx>=0.25.0
+pytest
