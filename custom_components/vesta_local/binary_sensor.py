@@ -114,6 +114,9 @@ class VestaBinarySensor(VestaDeviceEntity, BinarySensorEntity):
         - Motion is detected
         - Smoke/CO/Water is detected
 
+        An empty status string from the panel means the device is idle
+        (no alarm), which is reported as "off".
+
         Returns:
             True if triggered/open, False if normal/closed, None if unknown.
         """
@@ -122,6 +125,11 @@ class VestaBinarySensor(VestaDeviceEntity, BinarySensorEntity):
             return None
 
         status = device.status
+
+        # Panel reports an empty status string for idle devices
+        # (smoke detectors, water sensors, PIRs). Empty == no alarm == off.
+        if not status or not status.strip():
+            return False
 
         # Check if status indicates "on" state
         if status in SENSOR_STATUS_ON:
