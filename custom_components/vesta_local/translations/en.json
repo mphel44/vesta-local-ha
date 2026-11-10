@@ -17,6 +17,22 @@
           "use_ssl": "Enable if your panel uses HTTPS (e.g., via a reverse proxy)"
         }
       },
+      "reconfigure": {
+        "title": "Reconfigure Vesta/Climax Panel",
+        "description": "Update the connection details for your Vesta/Climax alarm panel, e.g. after its IP address changed.",
+        "data": {
+          "host": "Host (IP address or hostname)",
+          "username": "Username",
+          "password": "Password",
+          "use_ssl": "Use HTTPS"
+        },
+        "data_description": {
+          "host": "The IP address or hostname of your alarm panel (e.g., 192.168.1.100)",
+          "username": "The username for your alarm panel (usually 'admin')",
+          "password": "The password for your alarm panel",
+          "use_ssl": "Enable if your panel uses HTTPS (e.g., via a reverse proxy)"
+        }
+      },
       "zeroconf_confirm": {
         "title": "Vesta/Climax Panel Discovered",
         "description": "A Vesta/Climax alarm panel ({name}) was discovered at {host}. Enter the credentials to complete setup.",
@@ -48,7 +64,8 @@
     "abort": {
       "already_configured": "This panel is already configured.",
       "already_in_progress": "Setup of this panel is already in progress. Open Settings > Devices & services and finish the pending discovery for this panel instead.",
-      "reauth_successful": "Re-authentication successful."
+      "reauth_successful": "Re-authentication successful.",
+      "reconfigure_successful": "Reconfiguration successful."
     }
   },
   "options": {
