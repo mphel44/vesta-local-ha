@@ -8,12 +8,17 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .client import DeviceStatus
-from .const import DEVICE_TYPE_NAMES, DOMAIN, MANUFACTURER
+from .const import DEVICE_TYPE_NAMES, DOMAIN, MANUFACTURER, PANEL_MODEL
 
 if TYPE_CHECKING:
     from .coordinator import VestaDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# via_device (an identifier tuple) is deprecated since HA 2026.x and removed
+# in 2027.8 in favour of via_device_id (the registry id). Older versions only
+# understand via_device, so pick whichever the running HA supports.
+_SUPPORTS_VIA_DEVICE_ID = "via_device_id" in getattr(DeviceInfo, "__annotations__", {})
 
 
 class VestaEntity(CoordinatorEntity["VestaDataUpdateCoordinator"]):
@@ -76,14 +81,20 @@ class VestaDeviceEntity(VestaEntity):
         self._attr_unique_id = f"{entry_id}_{device.device_id}"
 
         # Device info for Home Assistant device registry
-        self._attr_device_info = DeviceInfo(
+        device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry_id}_{device.device_id}")},
             name=device.name,
             manufacturer=MANUFACTURER,
             model=DEVICE_TYPE_NAMES.get(device.type_f, device.type_f),
             serial_number=device.device_id,
-            via_device=(DOMAIN, entry_id),
         )
+        # Link the zone device to the panel it belongs to.
+        panel_device_id = getattr(coordinator, "panel_device_id", None)
+        if _SUPPORTS_VIA_DEVICE_ID and panel_device_id:
+            device_info["via_device_id"] = panel_device_id  # type: ignore[typeddict-unknown-key]
+        else:
+            device_info["via_device"] = (DOMAIN, entry_id)  # type: ignore[typeddict-unknown-key]
+        self._attr_device_info = device_info
 
     @property
     def device_data(self) -> DeviceStatus | None:
@@ -145,7 +156,7 @@ class VestaPanelEntity(VestaEntity):
             identifiers={(DOMAIN, entry_id)},
             name=f"Vesta Panel ({coordinator.client.host})",
             manufacturer=MANUFACTURER,
-            model="HSGW-MAX",
+            model=PANEL_MODEL,
         )
 
     @property
