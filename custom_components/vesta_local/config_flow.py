@@ -192,8 +192,11 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             password = user_input[CONF_PASSWORD]
             use_ssl = user_input.get(CONF_USE_SSL, False)
 
-            await self.async_set_unique_id(host)
-            self._abort_if_unique_id_configured()
+            # Unlike _abort_if_unique_id_configured, this excludes the entry
+            # being reconfigured, so saving without changing the host does
+            # not abort as already_configured; it still rejects a host
+            # already claimed by a *different* entry.
+            self._async_abort_entries_match({CONF_HOST: host})
 
             error = await self._test_connection(host, username, password, use_ssl)
             if error:
@@ -201,6 +204,7 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 return self.async_update_reload_and_abort(
                     reconfigure_entry,
+                    unique_id=host,
                     title=f"{INTEGRATION_TITLE} ({host})",
                     data={
                         CONF_HOST: host,
