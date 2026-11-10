@@ -9,9 +9,11 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import httpx
+from homeassistant.util import dt as dt_util
 from pydantic import BaseModel, Field, field_validator
 
 from .const import (
@@ -64,6 +66,30 @@ def _decode_json(response: httpx.Response) -> Any:
         _LOGGER.debug("cp1252 decoding of %s failed (%s)", response.url, err)
 
     return json.loads(content.decode("utf-8", errors="replace"))
+
+
+def parse_panel_time(value: str) -> datetime | None:
+    """Parse a panel timestamp (local time, no zone) into an aware datetime.
+
+    The event log uses "2026/11/05 14:51:05". Dates before 2000 mean the
+    panel clock was never set and are rejected rather than taken at face
+    value.
+
+    Args:
+        value: The raw timestamp string from the panel.
+
+    Returns:
+        A timezone-aware datetime in Home Assistant's local zone, or None if
+        the value is not a usable timestamp.
+    """
+    value = (value or "").strip().replace("/", "-")
+    try:
+        naive = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+    if naive.year < 2000:
+        return None
+    return naive.replace(tzinfo=dt_util.get_default_time_zone())
 
 
 class DeviceStatus(BaseModel):

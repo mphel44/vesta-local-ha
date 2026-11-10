@@ -54,6 +54,9 @@ class VestaDataUpdateCoordinator(DataUpdateCoordinator[VestaData]):
         """
         self.client = client
         self.config_entry = config_entry
+        # Registry id of the panel device, set by async_setup_entry before the
+        # platforms run so zone devices can link to it with via_device_id.
+        self.panel_device_id: str | None = None
 
         super().__init__(
             hass,

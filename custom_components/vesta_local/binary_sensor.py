@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from homeassistant.components.binary_sensor import (
@@ -11,9 +12,13 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
+from .client import parse_panel_time
 from .const import (
     DEVICE_TYPE_TO_BINARY_SENSOR_CLASS,
+    LOG_MOTION_ACTION,
+    LOG_MOTION_WINDOW,
     SENSOR_STATUS_OFF,
     SENSOR_STATUS_ON,
 )
@@ -21,10 +26,13 @@ from .entity import VestaDeviceEntity
 
 if TYPE_CHECKING:
     from . import VestaConfigEntry
-    from .client import DeviceStatus
+    from .client import DeviceStatus, EventLogEntry
     from .coordinator import VestaDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Event log source of a zone: "Zone1(detecteur_salon)" or "Zone3"
+_ZONE_RE = re.compile(r"Zone(\d+)\b")
 
 
 async def async_setup_entry(
@@ -142,7 +150,13 @@ class VestaBinarySensor(VestaDeviceEntity, BinarySensorEntity):
 
         # Panel reports an empty status string for idle devices
         # (smoke detectors, water sensors, PIRs). Empty == no alarm == off.
+        # Wired PIRs and PIR cameras never report a status at all, so for
+        # motion sensors a recent "Response" entry for their zone in the
+        # event log turns them on instead. The panel only logs those while
+        # armed, unless the zone is set to always report.
         if not status or not status.strip():
+            if self._attr_device_class == BinarySensorDeviceClass.MOTION:
+                return self._last_log_motion(window=True) is not None
             return False
 
         # Check if status indicates "on" state
@@ -163,6 +177,42 @@ class VestaBinarySensor(VestaDeviceEntity, BinarySensorEntity):
         _LOGGER.debug("Unknown sensor status: %s for device %s", status, device.name)
         return None
 
+    def _last_log_motion(self, window: bool = False) -> EventLogEntry | None:
+        """Return the newest "Response" log entry for this device's zone.
+
+        Args:
+            window: Only accept entries newer than LOG_MOTION_WINDOW seconds.
+
+        Returns:
+            The matching EventLogEntry, or None if there is none.
+        """
+        if self.coordinator.data is None:
+            return None
+
+        now = dt_util.now()
+        for event in self.coordinator.data.event_log:  # newest first
+            if event.action != LOG_MOTION_ACTION:
+                continue
+            match = _ZONE_RE.match(event.source)
+            if not match or int(match.group(1)) != self._zone:
+                continue
+            if event.area and event.area != str(self._area):
+                continue
+            if not window:
+                return event
+
+            when = parse_panel_time(event.log_time)
+            if when is None:
+                continue
+            age = (now - when).total_seconds()
+            # Small negative ages are clock skew between the panel and HA.
+            if -LOG_MOTION_WINDOW <= age <= LOG_MOTION_WINDOW:
+                return event
+            if age > LOG_MOTION_WINDOW:
+                return None  # the log is newest first, older entries follow
+
+        return None
+
     @property
     def extra_state_attributes(self) -> dict[str, str | int | bool] | None:
         """Return additional state attributes.
@@ -174,7 +224,16 @@ class VestaBinarySensor(VestaDeviceEntity, BinarySensorEntity):
         if device is None:
             return None
 
-        return {
+        attributes: dict[str, str | int | bool] = {}
+        if self._attr_device_class == BinarySensorDeviceClass.MOTION:
+            # Surfaced even when outside the window, so a stale panel clock
+            # (which silently stops motion detection) stays diagnosable.
+            last = self._last_log_motion()
+            if last is not None:
+                attributes["last_log_motion"] = last.log_time
+                attributes["last_log_motion_msg"] = last.msg
+
+        return attributes | {
             "zone": device.zone,
             "area": device.area,
             "rssi": device.rssi,

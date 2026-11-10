@@ -102,11 +102,21 @@ The triggered state automatically resets when a new event occurs (disarm or rest
 | Device Type | Home Assistant Entity |
 |-------------|----------------------|
 | 🚪 Door Contact | Binary Sensor (Door) |
-| 🏃 PIR / IR Motion | Binary Sensor (Motion) |
+| 🏃 PIR / IR Motion (`IR`, `PIR`, `IR Camera`) | Binary Sensor (Motion) — see note below |
 | 🔥 Smoke Detector | Binary Sensor (Smoke) |
 | 💨 CO Detector | Binary Sensor (CO) |
 | 💧 Water Leak Sensor | Binary Sensor (Moisture) |
 | 🪟 Glass Break Detector | Binary Sensor (Vibration) |
+
+> **Note on motion sensors**: wired PIRs and PIR cameras never report a
+> `status` in the panel's device list, so their motion sensor is derived from
+> the event log instead: a `Response` entry for the zone turns it on for 30
+> seconds. **By default the panel only writes those entries while the system
+> is armed**, so the sensor stays `off` when disarmed. To get motion while
+> disarmed, enable reporting for that zone in the panel's own configuration
+> page — be aware that making a battery-powered detector transmit on every
+> detection shortens its battery life considerably.
+
 
 ### Diagnostic Sensors
 - 📶 GSM Signal Strength (%)
@@ -117,6 +127,21 @@ The triggered state automatically resets when a new event occurs (disarm or rest
 - 🪫 Per-device Battery Status (Low Battery alerts)
 - ⚠️ Per-device Condition (on when the panel reports a problem, e.g. supervision failure; condition text, bypass and supervision in attributes)
 - 🔓 Per-device Tamper
+
+## 🧪 Development
+
+```bash
+pip install -r requirements_test.txt
+pytest
+```
+
+The JSON files under `tests/fixtures/` are **real answers from a panel**
+(a Climax Hybrid Panel Lite, contributed by [@B1oko](https://github.com/B1oko)),
+with credentials removed. They are the reference for what the hardware
+actually sends, which differs from the documentation in places: `su` is an
+integer while `cond_ok` is a string, `bypass` is `"Yes"`/`"No"` text, and a
+device name can be empty. Add a fixture rather than a hand-written payload
+when you add support for a device type.
 
 ## 🛠️ Technical Details
 

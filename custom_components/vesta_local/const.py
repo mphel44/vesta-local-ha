@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 DOMAIN: Final = "vesta_local"
 INTEGRATION_TITLE: Final = "Vesta/Climax Local"
 MANUFACTURER: Final = "Climax Technology"
+PANEL_MODEL: Final = "HSGW-MAX"
 
 # Configuration keys
 CONF_HOST: Final = "host"
@@ -25,6 +26,13 @@ ENDPOINT_REPORTED_EVENTS: Final = "reportEventListGet"
 
 # Polling configuration
 DEFAULT_SCAN_INTERVAL: Final = 5  # seconds
+
+# Motion derived from the event log. Wired PIRs and PIR cameras never report
+# a status in deviceListGet, so a "Response" log entry for their zone turns
+# their motion sensor on for this many seconds. The panel only logs those
+# entries while armed, unless the zone is configured to always report.
+LOG_MOTION_ACTION: Final = "Response"
+LOG_MOTION_WINDOW: Final = 30  # seconds
 
 # Alarm mode mappings (Panel -> Home Assistant)
 ALARM_MODE_TO_STATE: dict[str, AlarmControlPanelState] = {
@@ -51,6 +59,7 @@ DEVICE_TYPE_NAMES: dict[str, str] = {
     "Door Contact": "Door Contact",
     "IR": "Motion Detector",
     "PIR": "Motion Detector",
+    "IR Camera": "PIR Camera",
     "Smoke Detector": "Smoke Detector",
     "CO Detector": "CO Detector",
     "Water Sensor": "Water Leak Sensor",
@@ -65,6 +74,7 @@ DEVICE_TYPE_ICONS: dict[str, str] = {
     "Door Contact": "mdi:door-sensor",
     "IR": "mdi:motion-sensor",
     "PIR": "mdi:motion-sensor",
+    "IR Camera": "mdi:cctv",
     "Smoke Detector": "mdi:smoke-detector-variant",
     "CO Detector": "mdi:molecule-co",
     "Water Sensor": "mdi:water-alert",
@@ -80,6 +90,7 @@ DEVICE_TYPE_TO_BINARY_SENSOR_CLASS: dict[str, BinarySensorDeviceClass] = {
     "Door Contact": BinarySensorDeviceClass.DOOR,
     "IR": BinarySensorDeviceClass.MOTION,
     "PIR": BinarySensorDeviceClass.MOTION,
+    "IR Camera": BinarySensorDeviceClass.MOTION,
     "Smoke Detector": BinarySensorDeviceClass.SMOKE,
     "CO Detector": BinarySensorDeviceClass.CO,
     "Water Sensor": BinarySensorDeviceClass.MOISTURE,

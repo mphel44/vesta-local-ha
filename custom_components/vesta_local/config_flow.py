@@ -179,6 +179,49 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration, e.g. when the panel's IP address changes."""
+        reconfigure_entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            host = user_input[CONF_HOST].strip()
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
+            use_ssl = user_input.get(CONF_USE_SSL, False)
+
+            # Unlike _abort_if_unique_id_configured, this excludes the entry
+            # being reconfigured, so saving without changing the host does
+            # not abort as already_configured; it still rejects a host
+            # already claimed by a *different* entry.
+            self._async_abort_entries_match({CONF_HOST: host})
+
+            error = await self._test_connection(host, username, password, use_ssl)
+            if error:
+                errors["base"] = error
+            else:
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    unique_id=host,
+                    title=f"{INTEGRATION_TITLE} ({host})",
+                    data={
+                        CONF_HOST: host,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                        CONF_USE_SSL: use_ssl,
+                    },
+                )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                DATA_SCHEMA, reconfigure_entry.data
+            ),
+            errors=errors,
+        )
+
     async def async_step_reauth(
         self, entry_data: dict[str, Any]
     ) -> ConfigFlowResult:

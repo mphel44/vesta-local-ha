@@ -1,0 +1,23 @@
+{
+  "logrows": [
+{"log_time": "2026/11/05 15:09:36", "area": "1", "mode": "Disarm", "action": "Mode Changed", "user": "", "source": "Web", "device_type": "Panel", "msg": "Success"},
+{"log_time": "2026/11/05 15:09:31", "area": "1", "mode": "", "action": "Operation Error", "user": "", "source": "Web", "device_type": "Panel", "msg": ""},
+{"log_time": "2026/11/05 15:09:12", "area": "1", "mode": "Full Arm", "action": "Mode Changed", "user": "", "source": "Exit Timer", "device_type": "", "msg": "Success"},
+{"log_time": "2026/11/05 15:08:42", "area": "1", "mode": "Full Arm", "action": "Mode Changed With Fault", "user": "", "source": "Web", "device_type": "Panel", "msg": "Panel Battery Missing\/Dead"},
+{"log_time": "2026/11/05 14:51:50", "area": "1", "mode": "Disarm", "action": "Mode Changed", "user": "", "source": "Web", "device_type": "Panel", "msg": "Success"},
+{"log_time": "2026/11/05 14:51:35", "area": "1", "mode": "", "action": "PIN Code Error", "user": "", "source": "Zone4", "device_type": "Keypad", "msg": "1"},
+{"log_time": "2026/11/05 14:51:28", "area": "1", "mode": "", "action": "PIN Code Error", "user": "", "source": "Zone4", "device_type": "Keypad", "msg": "1"},
+{"log_time": "2026/11/05 14:51:18", "area": "1", "mode": "Full Arm", "action": "Response", "user": "", "source": "Zone1(Comedor)", "device_type": "IR", "msg": "Burglar Alarm"},
+{"log_time": "2026/11/05 14:51:15", "area": "1", "mode": "Full Arm", "action": "Timeout", "user": "", "source": "Entry Timer 1", "device_type": "", "msg": "Entry Timeout"},
+{"log_time": "2026/11/05 14:51:15", "area": "1", "mode": "Full Arm", "action": "Response", "user": "", "source": "Zone1(Comedor)", "device_type": "IR", "msg": "Follow"},
+{"log_time": "2026/11/05 14:51:14", "area": "1", "mode": "Full Arm", "action": "Response", "user": "", "source": "Zone3", "device_type": "IR Camera", "msg": "Follow"},
+{"log_time": "2026/11/05 14:51:09", "area": "1", "mode": "Full Arm", "action": "Response", "user": "", "source": "Zone1(Comedor)", "device_type": "IR", "msg": "Burglar Alarm"},
+{"log_time": "2026/11/05 14:51:05", "area": "1", "mode": "Full Arm", "action": "Response", "user": "", "source": "Zone1(Comedor)", "device_type": "IR", "msg": "Burglar Alarm"},
+{"log_time": "2026/11/05 14:50:59", "area": "1", "mode": "Full Arm", "action": "Mode Changed", "user": "", "source": "Exit Timer", "device_type": "", "msg": "Success"},
+{"log_time": "2026/11/05 14:50:28", "area": "1", "mode": "Full Arm", "action": "Mode Changed With Fault", "user": "User1(user)", "source": "Zone4", "device_type": "Keypad", "msg": "Panel Battery Missing\/Dead"},
+{"log_time": "2026/11/05 14:47:00", "area": "", "mode": "", "action": "System Fault", "user": "", "source": "Panel", "device_type": "", "msg": "Panel Battery Missing\/Dead"},
+{"log_time": "2026/11/05 14:47:00", "area": "", "mode": "", "action": "Panel Tamper", "user": "", "source": "Panel", "device_type": "", "msg": "Restore"},
+{"log_time": "2026/11/05 14:46:55", "area": "", "mode": "", "action": "System Fault", "user": "", "source": "Panel", "device_type": "", "msg": "Panel Battery Missing\/Dead; Panel Tamper"},
+{"log_time": "2026/11/05 14:46:54", "area": "", "mode": "", "action": "Ignored", "user": "", "source": "Panel", "device_type": "Panel", "msg": "Tamper Ignored"},
+{"log_time": "2026/11/05 14:46:54", "area": "", "mode": "", "action": "Panel Tamper", "user": "", "source": "Panel", "device_type": "", "msg": "Trigger"}]
+}
