@@ -115,6 +115,8 @@ The triggered state automatically resets when a new event occurs (disarm or rest
 - 📜 Event Log (last event + 20 most recent events in attributes)
 - 📋 Per-device Last Event (last action + 20 most recent device events in attributes)
 - 🪫 Per-device Battery Status (Low Battery alerts)
+- ⚠️ Per-device Condition (on when the panel reports a problem, e.g. supervision failure; condition text, bypass and supervision in attributes)
+- 🔓 Per-device Tamper
 
 ## 🛠️ Technical Details
 

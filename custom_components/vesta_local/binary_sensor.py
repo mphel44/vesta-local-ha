@@ -69,6 +69,20 @@ async def async_setup_entry(
                 device.zone,
             )
 
+            # Add condition (problem) and tamper sensors for every device.
+            # cond_ok and tamper_ok are reported for all enrolled devices.
+            entities.append(
+                VestaConditionBinarySensor(coordinator, device, entry.entry_id)
+            )
+            entities.append(
+                VestaTamperBinarySensor(coordinator, device, entry.entry_id)
+            )
+            _LOGGER.debug(
+                "Adding condition and tamper sensors for: %s (zone %d)",
+                device.name,
+                device.zone,
+            )
+
     async_add_entities(entities)
     _LOGGER.debug("Added %d binary sensor entities", len(entities))
 
@@ -222,3 +236,126 @@ class VestaBatteryBinarySensor(VestaDeviceEntity, BinarySensorEntity):
         # battery_ok = True -> is_on = False (battery OK)
         # battery_ok = False -> is_on = True (low battery alert)
         return not device.battery_ok
+
+
+class VestaConditionBinarySensor(VestaDeviceEntity, BinarySensorEntity):
+    """Binary sensor entity for device condition.
+
+    This entity reports the panel's condition flag for a device. The panel
+    raises a condition when a supervised device stops checking in or reports
+    another problem, so this is the closest thing to a liveness indicator.
+    When is_on is True, the panel reports a problem with the device.
+
+    Attributes:
+        _attr_device_class: Problem device class.
+        _attr_entity_category: Diagnostic category.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: VestaDataUpdateCoordinator,
+        device: DeviceStatus,
+        entry_id: str,
+    ) -> None:
+        """Initialize the condition binary sensor.
+
+        Args:
+            coordinator: The data update coordinator.
+            device: The device status information.
+            entry_id: The config entry ID.
+        """
+        super().__init__(coordinator, device, entry_id)
+
+        # Override unique ID to distinguish from the main sensor
+        self._attr_unique_id = f"{entry_id}_{device.device_id}_condition"
+        self._attr_name = "Condition"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True if the panel reports a problem with the device.
+
+        The BinarySensorDeviceClass.PROBLEM follows the convention:
+        - True (on) = Problem detected
+        - False (off) = OK / Normal
+
+        Returns:
+            True if the panel reports a problem, False if OK, None if unknown.
+        """
+        device = self.device_data
+        if device is None:
+            return None
+
+        # condition_ok is True when the panel reports no problem, so we invert it
+        return not device.condition_ok
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | bool] | None:
+        """Return additional state attributes.
+
+        Returns:
+            Dictionary of extra attributes or None.
+        """
+        device = self.device_data
+        if device is None:
+            return None
+
+        return {
+            "condition": device.condition,
+            "bypassed": device.bypassed,
+            "supervised": device.supervised,
+        }
+
+
+class VestaTamperBinarySensor(VestaDeviceEntity, BinarySensorEntity):
+    """Binary sensor entity for device tamper status.
+
+    This entity represents the tamper switch state of a device.
+    When is_on is True, the device reports tampering.
+
+    Attributes:
+        _attr_device_class: Tamper device class.
+        _attr_entity_category: Diagnostic category.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.TAMPER
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: VestaDataUpdateCoordinator,
+        device: DeviceStatus,
+        entry_id: str,
+    ) -> None:
+        """Initialize the tamper binary sensor.
+
+        Args:
+            coordinator: The data update coordinator.
+            device: The device status information.
+            entry_id: The config entry ID.
+        """
+        super().__init__(coordinator, device, entry_id)
+
+        # Override unique ID to distinguish from the main sensor
+        self._attr_unique_id = f"{entry_id}_{device.device_id}_tamper"
+        self._attr_name = "Tamper"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True if the device reports tampering.
+
+        The BinarySensorDeviceClass.TAMPER follows the convention:
+        - True (on) = Tampering detected
+        - False (off) = Clear
+
+        Returns:
+            True if tampered, False if clear, None if unknown.
+        """
+        device = self.device_data
+        if device is None:
+            return None
+
+        # tamper_ok is True when the tamper switch is OK, so we invert it
+        return not device.tamper_ok

@@ -75,8 +75,13 @@ class DeviceStatus(BaseModel):
         name: Human-readable name of the device.
         type_f: Device type (e.g., "Door Contact", "PIR").
         status: Current status string (e.g., "Door Open", "Door Close").
+        condition: Condition text reported by the panel (e.g., supervision
+            failure). Empty when the panel reports no problem.
+        condition_ok: True if the panel reports no condition problem.
         battery_ok: True if battery is OK, False if low.
         tamper_ok: True if tamper switch is OK.
+        bypassed: True if the zone is currently bypassed.
+        supervised: True if the panel supervises this device.
         rssi: Signal strength indicator.
         device_id: Unique identifier for the device.
     """
@@ -86,20 +91,34 @@ class DeviceStatus(BaseModel):
     name: str
     type_f: str = Field(alias="type_f")
     status: str
+    condition: str = Field(default="", alias="cond")
+    condition_ok: bool = Field(default=True, alias="cond_ok")
     battery_ok: bool = Field(alias="battery_ok")
     tamper_ok: bool = Field(alias="tamper_ok")
+    bypassed: bool = Field(default=False, alias="bypass")
+    supervised: bool = Field(default=True, alias="su")
     rssi: str
     device_id: str = Field(alias="id")
 
     model_config = {"populate_by_name": True}
 
-    @field_validator("battery_ok", "tamper_ok", mode="before")
+    @field_validator(
+        "condition_ok", "battery_ok", "tamper_ok", "supervised", mode="before"
+    )
     @classmethod
     def parse_binary(cls, value: Any) -> bool:
         """Parse binary string values to boolean."""
         if isinstance(value, bool):
             return value
         return str(value) == "1"
+
+    @field_validator("bypassed", mode="before")
+    @classmethod
+    def parse_bypass(cls, value: Any) -> bool:
+        """Parse bypass field ("Yes"/"No") to boolean."""
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in ("yes", "1", "true")
 
 
 class PanelStatus(BaseModel):
