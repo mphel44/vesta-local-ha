@@ -5,7 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'custom_components/vesta_local/manifest.json' # Déclenche seulement si la version change
+      - 'custom_components/vesta_local/manifest.json' # Seul fichier porteur de la version
+
+permissions:
+  contents: write # Requis par action-gh-release pour créer la release et le tag
 
 jobs:
   release:
@@ -18,11 +21,33 @@ jobs:
         id: get_version
         run: |
           # Extrait la version du fichier manifest.json
-          VERSION=$(jq -r '.version' custom_components/vesta_local/manifest.json)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(jq -er '.version' custom_components/vesta_local/manifest.json)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Aucune version trouvée dans manifest.json"
+            exit 1
+          fi
+          echo "Version du manifest : $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Le filtre `paths` se déclenche à toute modification de manifest.json,
+      # pas seulement à un changement de version. Sans ce garde-fou, une
+      # modification sans bump (ajout d'une dépendance, par ex.) réécrirait la
+      # release existante avec des notes régénérées.
+      - name: Skip if this version was already released
+        id: check_tag
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          if git ls-remote --tags --exit-code origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "::notice::Le tag v${VERSION} existe déjà, release ignorée (version non bumpée)."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: Release v${{ steps.get_version.outputs.version }}
