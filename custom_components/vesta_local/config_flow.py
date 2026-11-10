@@ -149,8 +149,13 @@ class VestaLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             password = user_input[CONF_PASSWORD]
             use_ssl = user_input.get(CONF_USE_SSL, False)
 
-            # Check for duplicate entries
-            await self.async_set_unique_id(host)
+            # Check for duplicate entries. raise_on_progress=False lets a
+            # user-initiated flow proceed when a zeroconf discovery flow for
+            # the same panel is still pending confirmation -- otherwise the
+            # manual "Add integration" path aborts with already_in_progress.
+            # Home Assistant drops the duplicate discovery flow once the entry
+            # is created.
+            await self.async_set_unique_id(host, raise_on_progress=False)
             self._abort_if_unique_id_configured()
 
             # Test connection

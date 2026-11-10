@@ -6,6 +6,7 @@ alarm panels via their local HTTP CGI interface.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -26,6 +27,45 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _decode_json(response: httpx.Response) -> Any:
+    """Parse a JSON response, tolerating non-UTF-8 bytes from the panel.
+
+    ``response.json()`` decodes the payload as strict UTF-8 and raises
+    ``UnicodeDecodeError`` when the panel stores a device, user or event name
+    in a legacy single-byte encoding. Panels seen in the wild emit cp1252, so
+    that is tried next -- it recovers the accented characters instead of
+    losing them. The last resort replaces the offending bytes, which can never
+    fail: one odd character in one event log entry must not take the whole
+    integration down.
+
+    Args:
+        response: The HTTP response to parse.
+
+    Returns:
+        The decoded JSON payload.
+
+    Raises:
+        ValueError: If the payload is not valid JSON under any encoding.
+    """
+    try:
+        return response.json()
+    except UnicodeDecodeError as err:
+        _LOGGER.debug(
+            "Response from %s is not valid UTF-8 (%s), retrying with "
+            "legacy encodings",
+            response.url,
+            err,
+        )
+
+    content = response.content
+    try:
+        return json.loads(content.decode("cp1252"))
+    except (UnicodeDecodeError, ValueError) as err:
+        _LOGGER.debug("cp1252 decoding of %s failed (%s)", response.url, err)
+
+    return json.loads(content.decode("utf-8", errors="replace"))
+
+
 class DeviceStatus(BaseModel):
     """Represents a device/zone status from the panel.
 
@@ -35,8 +75,13 @@ class DeviceStatus(BaseModel):
         name: Human-readable name of the device.
         type_f: Device type (e.g., "Door Contact", "PIR").
         status: Current status string (e.g., "Door Open", "Door Close").
+        condition: Condition text reported by the panel (e.g., supervision
+            failure). Empty when the panel reports no problem.
+        condition_ok: True if the panel reports no condition problem.
         battery_ok: True if battery is OK, False if low.
         tamper_ok: True if tamper switch is OK.
+        bypassed: True if the zone is currently bypassed.
+        supervised: True if the panel supervises this device.
         rssi: Signal strength indicator.
         device_id: Unique identifier for the device.
     """
@@ -46,20 +91,34 @@ class DeviceStatus(BaseModel):
     name: str
     type_f: str = Field(alias="type_f")
     status: str
+    condition: str = Field(default="", alias="cond")
+    condition_ok: bool = Field(default=True, alias="cond_ok")
     battery_ok: bool = Field(alias="battery_ok")
     tamper_ok: bool = Field(alias="tamper_ok")
+    bypassed: bool = Field(default=False, alias="bypass")
+    supervised: bool = Field(default=True, alias="su")
     rssi: str
     device_id: str = Field(alias="id")
 
     model_config = {"populate_by_name": True}
 
-    @field_validator("battery_ok", "tamper_ok", mode="before")
+    @field_validator(
+        "condition_ok", "battery_ok", "tamper_ok", "supervised", mode="before"
+    )
     @classmethod
     def parse_binary(cls, value: Any) -> bool:
         """Parse binary string values to boolean."""
         if isinstance(value, bool):
             return value
         return str(value) == "1"
+
+    @field_validator("bypassed", mode="before")
+    @classmethod
+    def parse_bypass(cls, value: Any) -> bool:
+        """Parse bypass field ("Yes"/"No") to boolean."""
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in ("yes", "1", "true")
 
 
 class PanelStatus(BaseModel):
@@ -215,6 +274,7 @@ class VestaLocalClient:
         self._verify_ssl = verify_ssl
         self._use_ssl = use_ssl
         self._client: httpx.AsyncClient | None = None
+        self._failed_fetches: set[str] = set()
 
         protocol = "https" if use_ssl else "http"
         self._base_url = f"{protocol}://{host}/action"
@@ -299,13 +359,18 @@ class VestaLocalClient:
                 if "application/json" not in content_type and "text/json" not in content_type:
                     # Try to parse as JSON anyway (some panels don't set content-type correctly)
                     try:
-                        return response.json()
+                        return _decode_json(response)
                     except Exception:
                         raise VestaApiError(
                             f"Unexpected response type '{content_type}' from {url}: {response.text[:200]}"
                         )
 
-                return response.json()
+                try:
+                    return _decode_json(response)
+                except ValueError as err:
+                    raise VestaApiError(
+                        f"Invalid JSON response from {url}: {err}"
+                    ) from err
 
             except httpx.ConnectError as err:
                 last_error = VestaConnectionError(
@@ -424,6 +489,38 @@ class VestaLocalClient:
             _LOGGER.error("Failed to parse device list: %s", err)
             raise VestaApiError(f"Failed to parse device list: {err}") from err
 
+    def _log_fetch_failure(self, name: str, error: BaseException) -> None:
+        """Log a non-critical fetch failure once per failure streak.
+
+        The coordinator polls every few seconds, so logging every failure at
+        warning level floods the Home Assistant log. Only the first failure of
+        a streak is a warning; the repeats stay at debug level.
+
+        Args:
+            name: Human-readable name of the data being fetched.
+            error: The exception raised by the fetch.
+        """
+        if name in self._failed_fetches:
+            _LOGGER.debug("Still failing to fetch %s: %s", name, error)
+            return
+
+        self._failed_fetches.add(name)
+        _LOGGER.warning(
+            "Failed to fetch %s: %s (further failures logged at debug level)",
+            name,
+            error,
+        )
+
+    def _log_fetch_recovery(self, name: str) -> None:
+        """Report that a previously failing fetch succeeded again.
+
+        Args:
+            name: Human-readable name of the data being fetched.
+        """
+        if name in self._failed_fetches:
+            self._failed_fetches.discard(name)
+            _LOGGER.info("Recovered fetching %s from %s", name, self._host)
+
     async def get_all_data(self) -> VestaData:
         """Get all data from the panel in a single call.
 
@@ -454,13 +551,17 @@ class VestaLocalClient:
 
         # Event log is non-critical -- degrade gracefully
         if isinstance(event_log_result, BaseException):
-            _LOGGER.warning("Failed to fetch event log: %s", event_log_result)
+            self._log_fetch_failure("event log", event_log_result)
             event_log_result = []
+        else:
+            self._log_fetch_recovery("event log")
 
         # Reported events are non-critical -- degrade gracefully
         if isinstance(reported_events_result, BaseException):
-            _LOGGER.warning("Failed to fetch reported events: %s", reported_events_result)
+            self._log_fetch_failure("reported events", reported_events_result)
             reported_events_result = []
+        else:
+            self._log_fetch_recovery("reported events")
 
         return VestaData(
             panel=panel,
@@ -473,7 +574,9 @@ class VestaLocalClient:
         """Get the event log from the panel.
 
         Args:
-            max_count: Maximum number of log entries to request. Default is 20.
+            max_count: Maximum number of log entries to request. Default is
+                1000, which keeps enough history for the per-device "last
+                event" sensors to find rarely-triggered zones.
 
         Returns:
             List of EventLogEntry objects, sorted by most recent first.
